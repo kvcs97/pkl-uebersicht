@@ -95,6 +95,9 @@ body{font-family:Arial,Helvetica,sans-serif;background:#0D2530;color:#D8EAF0;pad
   .hdr-info h1{font-size:12px;}
   .btn{display:none;}
 }
+@media(hover:none){
+  .btn-del{display:none!important;}
+}
 
 @media print{
 body{background:#fff;color:#000;padding:5mm;}
@@ -209,11 +212,22 @@ function scheduleSave(){
   syncDot("pending","Nicht gespeichert...");
   saveTimer=setTimeout(doSave,1500);
 }
-function doSave(){
+function hasEntries(){
+  return Object.keys(D).some(function(z){
+    return D[z]&&Object.keys(D[z]).some(function(r){
+      return D[z][r]&&Object.keys(D[z][r]).length>0;
+    });
+  });
+}
+function doSave(force){
   if(isSaving){scheduleSave();return;}
-  if(lastTs===0&&Object.keys(D).length===0){saveTimer=null;return;}
-  isSaving=true;
   saveTimer=null;
+  // Schutz: niemals automatisch leere Daten nach JSONBin schreiben
+  if(!force&&!hasEntries()){
+    syncDot("ok","Keine Daten zum Speichern");
+    return;
+  }
+  isSaving=true;
   var ts=Date.now();
   var payload={data:D,config:CFG,_ts:ts};
   syncDot("saving","Speichert...");
@@ -248,7 +262,7 @@ function startPolling(){
         var cloudTs=rec._ts||0;
         if(cloudTs>lastTs){
           lastTs=cloudTs;
-          if(rec.data)   D=rec.data;
+          if(rec.data&&(Object.keys(rec.data).length>0||!hasEntries())) D=rec.data;
           if(rec.config) CFG=rec.config;
           DZ.forEach(function(z){if(!CFG[z.id])CFG[z.id]={rows:z.rows.slice()};});
           localStorage.setItem("pkl-d",JSON.stringify(D));
@@ -292,7 +306,8 @@ function clearRow(zid,rid){
   scheduleSave();
 }
 function clearAll(){
-  if(confirm("Wirklich ALLE Eintr\u00e4ge l\u00f6schen?")){D={};renderAll();scheduleSave();}
+  var ok=prompt("Zum Best\u00e4tigen \"LEEREN\" eintippen:","");
+  if(ok==="LEEREN"){D={};renderAll();doSave(true);}
 }
 function exportData(){
   var b=new Blob([JSON.stringify({data:D,config:CFG},null,2)],{type:"application/json"});
