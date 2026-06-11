@@ -211,7 +211,9 @@ function scheduleSave(){
 }
 function doSave(){
   if(isSaving){scheduleSave();return;}
+  if(lastTs===0&&Object.keys(D).length===0){saveTimer=null;return;}
   isSaving=true;
+  saveTimer=null;
   var ts=Date.now();
   var payload={data:D,config:CFG,_ts:ts};
   syncDot("saving","Speichert...");
@@ -233,7 +235,10 @@ function doSave(){
   })
   .then(function(){isSaving=false;});
 }
+var pollingStarted=false;
 function startPolling(){
+  if(pollingStarted)return;
+  pollingStarted=true;
   setInterval(function(){
     if(isSaving||saveTimer) return;
     fetch(API_URL+"/latest",{headers:{"X-Master-Key":API_KEY}})
