@@ -309,7 +309,7 @@ function clearRow(zid,rid){
 }
 function clearAll(){
   var ok=prompt("Zum Best\u00e4tigen \"LEEREN\" eintippen:","");
-  if(ok==="LEEREN"){D={};renderAll();doSave(true);}
+  if(ok==="LEEREN"){D={};CFG={};DZ.forEach(function(z){CFG[z.id]={rows:z.rows.slice()};});renderAll();doSave(true);}
 }
 function exportData(){
   var b=new Blob([JSON.stringify({data:D,config:CFG},null,2)],{type:"application/json"});
