@@ -135,6 +135,9 @@ body{background:#fff;color:#000;padding:5mm;}
   <button class="btn" onclick="window.print()">&#128424; Drucken</button>
 </div>
 
+<!-- ① NEU: Filter-Banner (wird per JS befüllt, wenn ?zone= gesetzt) -->
+<div id="zone-filter-bar"></div>
+
 <div id="app"></div>
 
 <!-- Quick-Add FAB (nur Mobile/Scanner) -->
@@ -178,6 +181,10 @@ var API_KEY="$2a$10$Q499xwgCtri2CF3v0kc5d.47sfykEoIAs34TfnAKlxPK/HLI9B/0m";
 var API_URL="https://api.jsonbin.io/v3/b/"+BIN_ID;
 var DZ=[{"id":"A","name":"Lange Reihen","color":"#F5C800","tc":"#7B1900","prefix":"A","rows":["A1","A2","A3","A4","A5","A6","A7"]},{"id":"B","name":"Kurze Reihen","color":"#F4930C","tc":"#5C2A00","prefix":"B","rows":["B1","B2","B3","B4","B5","B6","B7","B8","B9","B10","B11"]},{"id":"C","name":"Blocklager gemischt","color":"#3B77B8","tc":"#FFFFFF","prefix":"C","rows":["C1","C-Gang1"]},{"id":"D","name":"Blocklager gemischt","color":"#00897B","tc":"#FFFFFF","prefix":"D","rows":["D1","D2","D3"]},{"id":"E","name":"Kleinere Sendungen","color":"#388E3C","tc":"#FFFFFF","prefix":"E","rows":["E1","E2","E3","E4","E5","E6"]}];
 var D={}, CFG={}, lastTs=0, saveTimer=null, isSaving=false;
+
+// ② NEU: URL-Filter auslesen (?zone=A1)
+var ZONE_FILTER=(new URLSearchParams(location.search)).get("zone")||"";
+
 function syncDot(state,msg){
   var d=document.getElementById("sync-dot");
   var t=document.getElementById("sync-txt");
@@ -224,7 +231,6 @@ function hasEntries(){
 function doSave(force){
   if(isSaving){scheduleSave();return;}
   saveTimer=null;
-  // Schutz: niemals automatisch leere Daten nach JSONBin schreiben
   if(!force&&!hasEntries()){
     syncDot("ok","Keine Daten zum Speichern");
     return;
@@ -353,6 +359,8 @@ function renderZone(zid){
   var sec=document.getElementById("zone-"+zid); if(!sec) return;
   sec.querySelector(".rows-grid").innerHTML=CFG[zid].rows.map(function(r){return makeCard(zdef,r);}).join("");
   var cnt=sec.querySelector(".z-count"); if(cnt) cnt.textContent=CFG[zid].rows.length+" Reihen";
+  // ③ NEU: Filter nach jedem Re-Render anwenden
+  if(ZONE_FILTER) applyZoneFilter();
 }
 function renderAll(){
   document.getElementById("app").innerHTML=DZ.map(function(z){
@@ -364,6 +372,8 @@ function renderAll(){
       '<button class="btn-add" data-z="'+z.id+'">+</button></div></div>'+
       '<div class="rows-grid">'+CFG[z.id].rows.map(function(r){return makeCard(z,r);}).join("")+"</div></div>";
   }).join("");
+  // ③ NEU: Filter nach jedem Re-Render anwenden
+  if(ZONE_FILTER) applyZoneFilter();
 }
 document.addEventListener("click",function(e){
   var t=e.target;
@@ -415,6 +425,18 @@ function openQA(){
   document.getElementById("qa-zones").innerHTML=DZ.map(function(z){
     return '<button class="qa-zb" data-zid="'+z.id+'" style="border-color:'+z.color+';color:'+z.color+'">'+z.id+'</button>';
   }).join("");
+  // Quick-Add bei aktivem Filter: Zone + Reihe vorauswählen
+  if(ZONE_FILTER){
+    var zid=ZONE_FILTER.charAt(0).toUpperCase();
+    setTimeout(function(){
+      var zBtn=document.querySelector(".qa-zb[data-zid='"+zid+"']");
+      if(zBtn) zBtn.click();
+      setTimeout(function(){
+        var rBtn=document.querySelector(".qa-rb[data-rid='"+ZONE_FILTER+"']");
+        if(rBtn) rBtn.click();
+      },60);
+    },60);
+  }
 }
 function closeQA(){document.getElementById("qa-ov").classList.remove("open");}
 function saveQA(){
@@ -486,8 +508,37 @@ document.addEventListener("keydown",function(e){
   if(e.key==="Enter"&&document.activeElement===document.getElementById("qa-ls")) saveQA();
 });
 
-loadFromCloud();
+// ④ NEU: Zone-Filter Funktionen ───────────────────────────────
+function showFilterBanner(){
+  var bar=document.getElementById("zone-filter-bar");
+  if(!bar||bar.innerHTML) return;
+  var zid=ZONE_FILTER.charAt(0).toUpperCase();
+  var zdef=DZ.find(function(z){return z.id===zid;})||{};
+  var col=zdef.color||"#F5C800";
+  bar.innerHTML='<div style="background:'+col+'18;border:1.5px solid '+col+'66;border-radius:8px;'+
+    'padding:9px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:12px;color:'+col+';">'+
+    '<span style="font-size:18px;">&#128204;</span>'+
+    '<span>Gefilterter Platz: <strong style="font-size:14px;">'+ZONE_FILTER+'</strong></span>'+
+    '<span style="opacity:.5;font-size:10px;">&middot; '+esc(zdef.name||"")+'</span>'+
+    '<a href="?" style="margin-left:auto;color:#7AB8CC;font-size:11px;text-decoration:none;'+
+    'border:1px solid #36697A;border-radius:4px;padding:4px 10px;cursor:pointer;white-space:nowrap;">'+
+    '&#x2715; Alle Pl&auml;tze anzeigen</a></div>';
+}
 
+function applyZoneFilter(){
+  var zid=ZONE_FILTER.charAt(0).toUpperCase();
+  // Alle Zonen ausblenden außer der passenden
+  document.querySelectorAll(".zone-sec").forEach(function(sec){
+    sec.style.display=(sec.id==="zone-"+zid)?"":"none";
+  });
+  // Innerhalb der Zone: nur die passende Karte zeigen
+  document.querySelectorAll(".lcard").forEach(function(card){
+    card.style.display=(card.id==="c-"+zid+"-"+ZONE_FILTER)?"":"none";
+  });
+  showFilterBanner();
+}
+
+loadFromCloud();
 </script>
 </body>
 </html>
