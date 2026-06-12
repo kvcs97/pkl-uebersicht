@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>PKL Übersicht – Auslieferungszone</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:Arial,Helvetica,sans-serif;background:#0D2530;color:#D8EAF0;padding:12px;min-height:100vh;}
@@ -87,17 +86,14 @@ body{font-family:Arial,Helvetica,sans-serif;background:#0D2530;color:#D8EAF0;pad
 .qa-ok-more{background:#1E4050;border:1px solid #36697A;color:#D8EAF0;}
 .qa-ok-close{background:none;border:1px solid #2A5060;color:#7AB8CC;}
 .qa-row-count{font-size:11px;color:#F5C800;margin-top:8px;min-height:16px;line-height:1.5;}
-/* ── QR Scanner ─────────────────────────────────── */
-.qa-qr-btn{width:100%;background:#112530;border:1.5px dashed #36697A;color:#7AB8CC;border-radius:8px;padding:12px;font-size:13px;cursor:pointer;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:8px;transition:border-color .15s,color .15s;}
-.qa-qr-btn:hover{border-color:#5A9AAA;color:#D8EAF0;}
-.qa-qr-scan{display:none;margin-bottom:14px;background:#0D2530;border-radius:10px;overflow:hidden;border:1px solid #36697A;}
-.qa-qr-video{width:100%;max-height:230px;display:block;object-fit:cover;background:#000;}
-.qa-qr-canvas{display:none;}
-.qa-qr-footer{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;}
-.qa-qr-hint{font-size:10px;color:#7AB8CC;}
-.qa-qr-stop{background:none;border:1px solid #36697A;color:#7AB8CC;border-radius:5px;padding:4px 12px;font-size:11px;cursor:pointer;}
-.qa-qr-stop:hover{border-color:#AA5555;color:#DC8888;}
-.qa-qr-ok{display:none;background:#4CAF5022;border:1px solid #4CAF5066;border-radius:8px;color:#4CAF50;font-size:12px;font-weight:bold;padding:8px 12px;margin-bottom:10px;text-align:center;}
+/* ── Platz-Scan Eingabe ──────────────────────── */
+.qa-scan-wrap{margin-bottom:14px;}
+.qa-scan-inp{width:100%;background:#0D2530;border:1.5px solid #F5C80066;border-radius:8px;color:#fff;padding:13px 12px;font-size:18px;letter-spacing:1.5px;caret-color:#F5C800;}
+.qa-scan-inp:focus{outline:none;border-color:#F5C800;}
+.qa-scan-inp::placeholder{color:#2A4A5A;font-size:13px;letter-spacing:0;}
+.qa-scan-fb{min-height:18px;font-size:11px;margin-top:6px;padding:0 2px;}
+.qa-divider{display:flex;align-items:center;gap:10px;margin-bottom:14px;color:#2A4A5A;font-size:10px;text-transform:uppercase;letter-spacing:.8px;}
+.qa-divider::before,.qa-divider::after{content:"";flex:1;height:1px;background:#2A4A5A;}
 @media(max-width:700px){
   .fab{display:flex;}
   body{padding:8px 6px;}
@@ -163,19 +159,16 @@ body{background:#fff;color:#000;padding:5mm;}
       <button class="qa-x" onclick="closeQA()">&#x2715;</button>
     </div>
 
-    <!-- QR-Code Scan: Platz per Kamera auswählen -->
-    <button class="qa-qr-btn" id="qa-qr-btn" onclick="startQRScan()">
-      &#128247; Platz per QR-Code scannen
-    </button>
-    <div class="qa-qr-ok" id="qa-qr-ok"></div>
-    <div class="qa-qr-scan" id="qa-qr-scan">
-      <video class="qa-qr-video" id="qa-qr-video" playsinline muted autoplay></video>
-      <canvas class="qa-qr-canvas" id="qa-qr-canvas"></canvas>
-      <div class="qa-qr-footer">
-        <span class="qa-qr-hint">&#128247; Kamera auf QR-Code am Lagerplatz richten</span>
-        <button class="qa-qr-stop" onclick="stopQRScan()">&#x2715; Abbrechen</button>
-      </div>
+    <!-- Platz-Barcode scannen (Hardware-Scanner oder Eingabe) -->
+    <div class="qa-scan-wrap">
+      <span class="qa-lbl">&#128269; Platz-Barcode scannen</span>
+      <input class="qa-scan-inp" id="qa-place-scan"
+        type="text" autocomplete="off" spellcheck="false"
+        autocorrect="off" autocapitalize="characters"
+        placeholder="Barcode scannen oder z.B. A3 eintippen ...">
+      <div class="qa-scan-fb" id="qa-scan-fb"></div>
     </div>
+    <div class="qa-divider">oder manuell w&auml;hlen</div>
     <div class="qa-step">
       <span class="qa-lbl">1 &middot; Zone w&auml;hlen</span>
       <div class="qa-grid-z" id="qa-zones"></div>
@@ -448,9 +441,14 @@ function openQA(){
   document.getElementById("qa-sv").style.display="block";
   document.getElementById("qa-sv").disabled=true;
   document.getElementById("qa-ls").value="";
+  document.getElementById("qa-place-scan").value="";
+  document.getElementById("qa-scan-fb").textContent="";
+  document.getElementById("qa-scan-fb").style.color="";
   document.getElementById("qa-zones").innerHTML=DZ.map(function(z){
     return '<button class="qa-zb" data-zid="'+z.id+'" style="border-color:'+z.color+';color:'+z.color+'">'+z.id+'</button>';
   }).join("");
+  // Scan-Input sofort fokussieren (Hardware-Scanner bereit)
+  setTimeout(function(){document.getElementById("qa-place-scan").focus();},80);
   // Quick-Add bei aktivem Filter: Zone + Reihe vorauswählen
   if(ZONE_FILTER){
     var zid=ZONE_FILTER.charAt(0).toUpperCase();
@@ -464,7 +462,7 @@ function openQA(){
     },60);
   }
 }
-function closeQA(){stopQRScan();document.getElementById("qa-ov").classList.remove("open");}
+function closeQA(){document.getElementById("qa-ov").classList.remove("open");}
 function saveQA(){
   var ls=document.getElementById("qa-ls").value.trim();
   if(!ls||!qaZ||qaRows.length===0) return;
@@ -530,9 +528,7 @@ document.addEventListener("click",function(e){
   }
 });
 // Enter-Taste = Barcode-Scanner bestätigt automatisch
-document.addEventListener("keydown",function(e){
-  if(e.key==="Enter"&&document.activeElement===document.getElementById("qa-ls")) saveQA();
-});
+// (jetzt kombiniert in handlePlaceScan-Block weiter unten)
 
 // ④ NEU: Zone-Filter Funktionen ───────────────────────────────
 function showFilterBanner(){
@@ -564,87 +560,53 @@ function applyZoneFilter(){
   showFilterBanner();
 }
 
-// ── QR-Code Scan (Platzerkennung per Kamera) ─────────────────
-var qrStream=null, qrFrame=null;
-
-function startQRScan(){
-  var scan=document.getElementById("qa-qr-scan");
-  var btn=document.getElementById("qa-qr-btn");
-  var ok=document.getElementById("qa-qr-ok");
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    alert("Kamera auf diesem Gerät nicht verfügbar.");return;
-  }
-  scan.style.display="block";
-  btn.style.display="none";
-  ok.style.display="none";
-  var video=document.getElementById("qa-qr-video");
-  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})
-    .then(function(stream){
-      qrStream=stream;
-      video.srcObject=stream;
-      video.play();
-      qrFrame=requestAnimationFrame(tickQR);
-    })
-    .catch(function(err){
-      stopQRScan();
-      alert("Kamera nicht verfügbar: "+err.message);
-    });
-}
-
-function tickQR(){
-  var video=document.getElementById("qa-qr-video");
-  var canvas=document.getElementById("qa-qr-canvas");
-  if(!canvas||!video) return;
-  if(video.readyState===video.HAVE_ENOUGH_DATA){
-    var ctx=canvas.getContext("2d");
-    canvas.width=video.videoWidth;
-    canvas.height=video.videoHeight;
-    ctx.drawImage(video,0,0,canvas.width,canvas.height);
-    var img=ctx.getImageData(0,0,canvas.width,canvas.height);
-    if(typeof jsQR==="function"){
-      var code=jsQR(img.data,img.width,img.height,{inversionAttempts:"dontInvert"});
-      if(code){handleQRResult(code.data);return;}
+// ── Platz-Barcode Scan (HID-Scanner oder Eingabe) ────────────
+function findRowByBarcode(val){
+  val=val.trim().toUpperCase();
+  for(var i=0;i<DZ.length;i++){
+    var z=DZ[i];
+    var rows=(CFG[z.id]&&CFG[z.id].rows)?CFG[z.id].rows:z.rows;
+    for(var j=0;j<rows.length;j++){
+      if(rows[j].toUpperCase()===val) return{zid:z.id,rid:rows[j]};
     }
   }
-  qrFrame=requestAnimationFrame(tickQR);
+  return null;
 }
 
-function stopQRScan(){
-  if(qrFrame){cancelAnimationFrame(qrFrame);qrFrame=null;}
-  if(qrStream){qrStream.getTracks().forEach(function(t){t.stop();});qrStream=null;}
-  var scan=document.getElementById("qa-qr-scan");
-  var btn=document.getElementById("qa-qr-btn");
-  if(scan) scan.style.display="none";
-  if(btn)  btn.style.display="";
-}
-
-function handleQRResult(data){
-  stopQRScan();
-  // URL-Parameter ?zone=A3 extrahieren
-  var match=data.match(/[?&]zone=([A-Za-z][0-9]+)/);
-  if(!match){
-    alert("Kein gültiger PKL-Platz-QR-Code.\n\nGescannt: "+data);
+function handlePlaceScan(val){
+  val=val.trim();
+  if(!val) return;
+  var fb=document.getElementById("qa-scan-fb");
+  var result=findRowByBarcode(val);
+  if(!result){
+    fb.style.color="#FF9999";
+    fb.textContent="Platz \""+val.toUpperCase()+"\" nicht gefunden";
     return;
   }
-  var zone=match[1].toUpperCase();
-  var zid=zone.charAt(0);
-
-  // Feedback anzeigen
-  var ok=document.getElementById("qa-qr-ok");
-  if(ok){ok.textContent="✓ Platz "+zone+" erkannt";ok.style.display="block";}
-
+  fb.style.color="#4CAF50";
+  fb.textContent="\u2713 Platz "+result.rid+" erkannt";
   // Zone-Button klicken
-  var zBtn=document.querySelector(".qa-zb[data-zid='"+zid+"']");
+  var zBtn=document.querySelector(".qa-zb[data-zid='"+result.zid+"']");
   if(zBtn) zBtn.click();
   // Reihen-Button klicken + Fokus auf Lieferschein
   setTimeout(function(){
-    var rBtn=document.querySelector(".qa-rb[data-rid='"+zone+"']");
+    var rBtn=document.querySelector(".qa-rb[data-rid='"+result.rid+"']");
     if(rBtn){
       rBtn.click();
       setTimeout(function(){document.getElementById("qa-ls").focus();},80);
     }
   },80);
 }
+
+// Enter-Taste vom HID-Scanner oder manueller Eingabe
+document.addEventListener("keydown",function(e){
+  if(e.key==="Enter"){
+    if(document.activeElement===document.getElementById("qa-place-scan")){
+      handlePlaceScan(document.getElementById("qa-place-scan").value);
+    }
+    if(document.activeElement===document.getElementById("qa-ls")) saveQA();
+  }
+});
 
 loadFromCloud();
 </script>
