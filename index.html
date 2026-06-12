@@ -85,6 +85,7 @@ body{font-family:Arial,Helvetica,sans-serif;background:#0D2530;color:#D8EAF0;pad
 .qa-ok-btns button{flex:1;padding:12px;border-radius:8px;cursor:pointer;font-size:13px;}
 .qa-ok-more{background:#1E4050;border:1px solid #36697A;color:#D8EAF0;}
 .qa-ok-close{background:none;border:1px solid #2A5060;color:#7AB8CC;}
+.qa-row-count{font-size:11px;color:#F5C800;margin-top:8px;min-height:16px;line-height:1.5;}
 @media(max-width:700px){
   .fab{display:flex;}
   body{padding:8px 6px;}
@@ -151,8 +152,9 @@ body{background:#fff;color:#000;padding:5mm;}
       <div class="qa-grid-z" id="qa-zones"></div>
     </div>
     <div class="qa-step" id="qa-step-r" style="display:none">
-      <span class="qa-lbl">2 &middot; Reihe w&auml;hlen</span>
+      <span class="qa-lbl">2 &middot; Reihen w&auml;hlen (mehrere m&ouml;glich)</span>
       <div class="qa-grid-r" id="qa-rows"></div>
+      <div class="qa-row-count" id="qa-row-count"></div>
     </div>
     <div class="qa-step" id="qa-step-ls" style="display:none">
       <span class="qa-lbl">3 &middot; Lieferscheinnummer scannen</span>
@@ -174,7 +176,7 @@ body{background:#fff;color:#000;padding:5mm;}
 var BIN_ID="6a2807caf5f4af5e29d1937c";
 var API_KEY="$2a$10$Q499xwgCtri2CF3v0kc5d.47sfykEoIAs34TfnAKlxPK/HLI9B/0m";
 var API_URL="https://api.jsonbin.io/v3/b/"+BIN_ID;
-var DZ=[{"id":"A","name":"Lange Reihen","color":"#F5C800","tc":"#7B1900","prefix":"R","rows":["R1","R2","R3","R4","R5","R6","R7"]},{"id":"B","name":"Kurze Reihen","color":"#F4930C","tc":"#5C2A00","prefix":"K","rows":["K1","K2","K3","K4","K5","K6","K7","K8","K9","K10","K11"]},{"id":"C","name":"Blocklager gemischt","color":"#3B77B8","tc":"#FFFFFF","prefix":"C","rows":["C1","C-Gang1"]},{"id":"D","name":"Blocklager gemischt","color":"#00897B","tc":"#FFFFFF","prefix":"D","rows":["D1","D2","D3"]},{"id":"E","name":"Kleinere Sendungen","color":"#388E3C","tc":"#FFFFFF","prefix":"E","rows":["E1","E2","E3","E4","E5","E6"]}];
+var DZ=[{"id":"A","name":"Lange Reihen","color":"#F5C800","tc":"#7B1900","prefix":"A","rows":["A1","A2","A3","A4","A5","A6","A7"]},{"id":"B","name":"Kurze Reihen","color":"#F4930C","tc":"#5C2A00","prefix":"B","rows":["B1","B2","B3","B4","B5","B6","B7","B8","B9","B10","B11"]},{"id":"C","name":"Blocklager gemischt","color":"#3B77B8","tc":"#FFFFFF","prefix":"C","rows":["C1","C-Gang1"]},{"id":"D","name":"Blocklager gemischt","color":"#00897B","tc":"#FFFFFF","prefix":"D","rows":["D1","D2","D3"]},{"id":"E","name":"Kleinere Sendungen","color":"#388E3C","tc":"#FFFFFF","prefix":"E","rows":["E1","E2","E3","E4","E5","E6"]}];
 var D={}, CFG={}, lastTs=0, saveTimer=null, isSaving=false;
 function syncDot(state,msg){
   var d=document.getElementById("sync-dot");
@@ -400,9 +402,9 @@ function doSearch(){
 }
 
 // ── Quick-Add (Scanner-Modus) ─────────────────────────────────
-var qaZ=null,qaR=null;
+var qaZ=null,qaRows=[];
 function openQA(){
-  qaZ=null;qaR=null;
+  qaZ=null;qaRows=[];
   document.getElementById("qa-ov").classList.add("open");
   document.getElementById("qa-step-r").style.display="none";
   document.getElementById("qa-step-ls").style.display="none";
@@ -417,40 +419,45 @@ function openQA(){
 function closeQA(){document.getElementById("qa-ov").classList.remove("open");}
 function saveQA(){
   var ls=document.getElementById("qa-ls").value.trim();
-  if(!ls||!qaZ||!qaR) return;
-  // Nächsten freien Slot finden
-  var slot=-1;
-  for(var i=0;i<5;i++){if(!getV(qaZ,qaR,i)){slot=i;break;}}
-  if(slot<0){alert("Reihe "+qaR+" ist voll (5/5 Eintr\u00e4ge). Bitte zuerst leeren.");return;}
-  setV(qaZ,qaR,slot,ls);
-  // Prüfen ob gleiche LS-Nr. bereits woanders eingetragen (Mehrfach-Lagerort)
+  if(!ls||!qaZ||qaRows.length===0) return;
+  var saved=[],full=[];
+  qaRows.forEach(function(r){
+    var slot=-1;
+    for(var i=0;i<5;i++){if(!getV(qaZ,r,i)){slot=i;break;}}
+    if(slot<0){full.push(r);}
+    else{setV(qaZ,r,slot,ls);saved.push("Zone "+qaZ+" \u00b7 "+r+" (Feld "+(slot+1)+")");}
+  });
+  renderZone(qaZ);
+  var sub=saved.join("\n");
+  if(full.length) sub+="\n\u26a0\ufe0f Voll (kein Platz): "+full.join(", ");
   var others=[];
   DZ.forEach(function(z){
     CFG[z.id].rows.forEach(function(r){
-      if(z.id===qaZ&&r===qaR) return;
+      if(z.id===qaZ&&qaRows.indexOf(r)>=0) return;
       for(var i=0;i<5;i++){if(getV(z.id,r,i)===ls) others.push("Zone "+z.id+" \u00b7 "+r);}
     });
   });
-  var sub="Zone "+qaZ+" \u00b7 "+qaR+" (Feld "+(slot+1)+")";
-  if(others.length) sub+="\n\u26a0\ufe0f Auch eingetragen in: "+others.join(", ");
+  if(others.length) sub+="\n\u26a0\ufe0f Auch in: "+others.join(", ");
   document.getElementById("qa-ok-sub").textContent=sub;
   document.getElementById("qa-ok").style.display="block";
   document.getElementById("qa-sv").style.display="none";
-  renderZone(qaZ);
 }
 function qaNext(){
+  qaRows=[];
+  document.querySelectorAll(".qa-rb").forEach(function(b){b.classList.remove("sel");});
+  document.getElementById("qa-row-count").textContent="";
   document.getElementById("qa-ok").style.display="none";
   document.getElementById("qa-sv").style.display="block";
-  document.getElementById("qa-sv").disabled=!qaR;
+  document.getElementById("qa-sv").disabled=true;
+  document.getElementById("qa-step-ls").style.display="none";
   document.getElementById("qa-ls").value="";
-  if(qaR) setTimeout(function(){document.getElementById("qa-ls").focus();},60);
 }
 // Quick-Add: Event-Delegation für Zone- und Reihen-Buttons
 document.addEventListener("click",function(e){
   var t=e.target;
   if(t===document.getElementById("qa-ov")) closeQA();
   if(t.classList.contains("qa-zb")){
-    qaZ=t.dataset.zid;qaR=null;
+    qaZ=t.dataset.zid;qaRows=[];
     document.querySelectorAll(".qa-zb").forEach(function(b){b.classList.remove("sel");});
     t.classList.add("sel");
     document.getElementById("qa-rows").innerHTML=CFG[qaZ].rows.map(function(r){
@@ -462,15 +469,16 @@ document.addEventListener("click",function(e){
     document.getElementById("qa-sv").style.display="block";
     document.getElementById("qa-sv").disabled=true;
     document.getElementById("qa-ls").value="";
+    document.getElementById("qa-row-count").textContent="";
   }
   if(t.classList.contains("qa-rb")){
-    qaR=t.dataset.rid;
-    document.querySelectorAll(".qa-rb").forEach(function(b){b.classList.remove("sel");});
-    t.classList.add("sel");
-    document.getElementById("qa-step-ls").style.display="block";
+    var rid=t.dataset.rid;
+    var idx=qaRows.indexOf(rid);
+    if(idx>=0){qaRows.splice(idx,1);t.classList.remove("sel");}else{qaRows.push(rid);t.classList.add("sel");}
+    var cnt=document.getElementById("qa-row-count");
+    if(qaRows.length===0){cnt.textContent="";document.getElementById("qa-step-ls").style.display="none";document.getElementById("qa-sv").disabled=true;}
+    else{cnt.textContent=qaRows.length+" Reihe"+(qaRows.length>1?"n":"")+" ausgew\u00e4hlt: "+qaRows.join(", ");document.getElementById("qa-step-ls").style.display="block";document.getElementById("qa-sv").disabled=false;if(qaRows.length===1)setTimeout(function(){document.getElementById("qa-ls").focus();},60);}
     document.getElementById("qa-ok").style.display="none";
-    document.getElementById("qa-sv").disabled=false;
-    setTimeout(function(){document.getElementById("qa-ls").focus();},60);
   }
 });
 // Enter-Taste = Barcode-Scanner bestätigt automatisch
