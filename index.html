@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>PKL Übersicht – Auslieferungszone</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%230D2530'/><rect x='5' y='9' width='22' height='17' rx='2' fill='none' stroke='%23F5C800' stroke-width='2.5'/><line x1='5' y1='17' x2='27' y2='17' stroke='%23F5C800' stroke-width='2.5'/><line x1='16' y1='9' x2='16' y2='17' stroke='%23F5C800' stroke-width='2'/></svg>">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:Arial,Helvetica,sans-serif;background:#0D2530;color:#D8EAF0;padding:12px;min-height:100vh;}
@@ -179,8 +180,8 @@ body{background:#fff;color:#000;padding:5mm;}
       <div class="qa-row-count" id="qa-row-count"></div>
     </div>
     <div class="qa-step" id="qa-step-ls" style="display:none">
-      <span class="qa-lbl">3 &middot; Lieferscheinnummer scannen</span>
-      <input class="qa-inp" id="qa-ls" type="text" inputmode="numeric" placeholder="Barcode scannen ..." autocomplete="off" spellcheck="false">
+      <span class="qa-lbl">3 &middot; Lieferscheinnummer scannen / eintippen</span>
+      <input class="qa-inp" id="qa-ls" type="text" inputmode="text" autocapitalize="characters" placeholder="Barcode scannen oder z.B. C_26_0123 ..." autocomplete="off" spellcheck="false">
     </div>
     <div class="qa-ok-box" id="qa-ok" style="display:none">
       <div class="qa-ok-title">&#10003; Eingetragen</div>
