@@ -48,6 +48,8 @@ body{font-family:Arial,Helvetica,sans-serif;background:#0D2530;color:#D8EAF0;pad
 .ctitle{font-size:10px;font-weight:bold;letter-spacing:.6px;text-decoration:underline;color:#8AACBC;}
 .btn-remove-row{background:none;border:none;color:#2D5060;font-size:13px;cursor:pointer;line-height:1;padding:0;}
 .btn-remove-row:hover{color:#CC5555;}
+.btn-rename-row{background:none;border:none;color:#2D5060;font-size:11px;cursor:pointer;line-height:1;padding:0 4px 0 0;}
+.btn-rename-row:hover{color:#7AACBC;}
 .cid{font-size:15px;font-weight:bold;text-align:center;border-radius:3px;padding:3px 4px;margin-bottom:7px;}
 .entry{display:flex;align-items:center;height:28px;border-bottom:.6px solid #243E4A;}
 .entry:last-of-type{border-bottom:none;}
@@ -319,6 +321,19 @@ function addRow(zid){
   rows.push(name);
   scheduleSave(); renderZone(zid);
 }
+function renameRow(zid,rid){
+  var newName=prompt("Neue Bezeichnung für \""+rid+"\":",rid);
+  if(!newName) return;
+  newName=newName.trim().toUpperCase();
+  if(!newName||newName===rid) return;
+  var rows=CFG[zid].rows;
+  if(rows.indexOf(newName)>=0){alert("\""+newName+"\" existiert bereits in Zone "+zid+".");return;}
+  var idx=rows.indexOf(rid);
+  if(idx<0) return;
+  rows[idx]=newName;
+  if(D[zid]&&D[zid][rid]){D[zid][newName]=D[zid][rid];delete D[zid][rid];}
+  scheduleSave();renderZone(zid);
+}
 function removeRow(zid,rid){
   var rows=CFG[zid].rows;
   if(rows.length<=1){alert("Mindestens eine Reihe muss vorhanden sein.");return;}
@@ -369,6 +384,7 @@ function makeCard(zdef,rid){
   }
   return '<div class="lcard" id="c-'+zdef.id+"-"+rid+'">'+
     '<div class="card-top"><span class="ctitle">PKL PRO REIHE</span>'+
+    '<button class="btn-rename-row" data-z="'+zdef.id+'" data-r="'+rid+'" title="Umbenennen">&#x270F;</button>'+
     '<button class="btn-remove-row" data-z="'+zdef.id+'" data-r="'+rid+'">&#x2715;</button></div>'+
     '<div class="cid" style="background:'+zdef.color+'2A;color:'+zdef.color+'">'+rid+"</div>"+
     entries+
@@ -398,6 +414,7 @@ function renderAll(){
 document.addEventListener("click",function(e){
   var t=e.target;
   if(t.classList.contains("btn-remove-row")) removeRow(t.dataset.z,t.dataset.r);
+  if(t.classList.contains("btn-rename-row")) renameRow(t.dataset.z,t.dataset.r);
   if(t.classList.contains("btn-clear-row"))  clearRow(t.dataset.z,t.dataset.r);
   if(t.classList.contains("btn-add"))         addRow(t.dataset.z);
 });
